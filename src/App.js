@@ -5,8 +5,6 @@ import ChartWrapper from './D3ChartWrapper'
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-      </header>
       <ChartWrapper />
     </div>
   );
