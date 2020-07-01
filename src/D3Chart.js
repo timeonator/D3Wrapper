@@ -1,97 +1,130 @@
 import * as d3 from 'd3'
 
-const MARGIN = { TOP: 10, BOTTOM: 50, LEFT: 70, RIGHT: 10 }
-const WIDTH = 800 - MARGIN.LEFT - MARGIN.RIGHT;
-const HEIGHT = 500 - MARGIN.TOP - MARGIN.BOTTOM;
+var url = "https://covidtracking.com/api/v1/states/or/daily.json";
+var width = 400
+var height = 350
+var margin = {
+    left: 30,
+    top: 40,
+    right: 30,
+    bottom : 30
+} 
 
 export default class D3Chart {
 	constructor(element) {
+        this.element = element;
+        console.log("element =", element)
 
+        console.log("width =", width)
+        console.log("height =", height)
 
-		this.svg = d3.select(element)
-			.append("svg")
-				.attr("width", WIDTH + MARGIN.LEFT + MARGIN.RIGHT)
-				.attr("height", HEIGHT + MARGIN.TOP + MARGIN.BOTTOM)
-			.append("g")
-				.attr("transform", `translate(${MARGIN.LEFT}, ${MARGIN.TOP})`)
+        this.svg = d3.select(this.element)
+        .append("svg")
+        .attr("className","d3-chart")
+        .attr("height", height)
+        .attr("width", width);
+    
 
-		this.xLabel = this.svg.append("text")
-			.attr("x", WIDTH / 2)
-			.attr("y", HEIGHT + 50)
-			.attr("text-anchor", "middle")
+        width = this.svg.attr("width") - (margin.left+margin.right)
+        height = this.svg.attr("height") - (margin.top+margin.bottom)
+        // this.xLabel = this.svg.append("text")
+		// 	.attr("x", this.svg.width / 2)
+		// 	.attr("y", this.svg.height + 50)
+		// 	.attr("text-anchor", "middle")
 
-		this.svg.append("text")
-			.attr("x", -(HEIGHT / 2))
-			.attr("y", -50)
-			.attr("text-anchor", "middle")
-			.text("Height in cm")
-			.attr("transform", "rotate(-90)")
+		// this.svg.append("text")
+		// 	.attr("x", -(this.svg.height / 2))
+		// 	.attr("y", -50)
+		// 	.attr("text-anchor", "middle")
+		// 	.text("height in cm")
+		// 	.attr("transform", "rotate(-90)")
 
-		this.xAxisGroup = this.svg.append("g")
-			.attr("transform", `translate(0, ${HEIGHT})`)
+		// this.xAxisGroup = this.svg.append("g")
+		// 	.attr("transform", `translate(0, ${height})`)
 
-		this.yAxisGroup = this.svg.append("g")
-
-		Promise.all([
-			d3.json("https://udemy-react-d3.firebaseio.com/tallest_men.json"),
-			d3.json("https://udemy-react-d3.firebaseio.com/tallest_women.json")
-		]).then((datasets) => {
-			this.menData = datasets[0]
-			this.womenData = datasets[1]
-			this.update("men")
-		})
+        // this.yAxisGroup = this.svg.append("g")
+        
+        var data = d3.json(url)
+        .then (thedata => { 
+            this.data = thedata.reverse();
+            this.update()
+            return(this.data)
+        },
+        function(error)  {
+            console.error("Something went wrong : ", error);
+            return error;
+        });
 	}
 
-	update(gender) {
+	update() {
 
-		this.data = (gender === "men") ? this.menData : this.womenData;
-		this.xLabel.text(`The world's tallest ${gender}`)
+        console.log("data =", this.data)
 
-		const y = d3.scaleLinear()
-			.domain([
-				d3.min(this.data, d => d.height) * 0.95, 
-				d3.max(this.data, d =>  d.height)
-			])
-			.range([HEIGHT, 0])
+        this.posInc = (this.data.map(day=>day.positiveIncrease));
 
-		const x = d3.scaleBand()
-			.domain(this.data.map(d => d.name))
-			.range([0, WIDTH])
-			.padding(0.4)
+        let formatter = d3.timeFormat("%m/%d/%Y")
+        let parseDate = d3.utcParse("%Y%m%d")
 
-		const xAxisCall = d3.axisBottom(x)
-		this.xAxisGroup.transition().duration(500).call(xAxisCall)
+        this.timeLine = this.data.map(d => 
+            d.dateModified ? d.dateModified : new Date(formatter(parseDate(d.date)))
+        )
+        console.log("Positive Increase =", this.posInc)
+        console.log("timeLine:", this.timeLine);
 
-		const yAxisCall = d3.axisLeft(y)
-		this.yAxisGroup.transition().duration(500).call(yAxisCall)
+//		this.svg.xLabel.text(`Blah Blah Blah`)
+
+        var yScale = d3.scaleLinear()
+            .domain([d3.min(this.posInc), d3.max(this.posInc)])
+            .range ([height, 0]);
+
+        var gy = this.svg.append("g")
+            .attr("class", "y-axis")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+            .call(d3.axisLeft(yScale).ticks(10))
+            
+        const timeScale = d3.scaleTime()
+            .domain([this.timeLine[0], new Date()])
+            .range([width, height]);
+        // Add scales to axis
+        // Add scales to axis
+        var xScale = d3.scaleTime()
+            .domain([this.timeLine[0],new Date()])
+            .range ([0, width])
+
+        var gx = this.svg.append("g")
+            .attr("class","x-axis")
+            .attr("transform", "translate(" + margin.left + "," + (height+margin.top) + ")")
+            .call(d3.axisBottom(xScale).ticks(4))
 
 		// DATA JOIN
 		const rects = this.svg.selectAll("rect")
 			.data(this.data)
 
 		// EXIT
-		rects.exit()
-			.transition().duration(500)
-				.attr("height", 0)
-				.attr("y", HEIGHT)
-				.remove()
+    // rects.exit()
+    //     .transition().duration(500)
+    //         .attr("height", 0)
+    //         .attr("y", height)
+    //         .remove()
 
 		// UPDATE
-		rects.transition().duration(500)
-			.attr("x", d => x(d.name))
-			.attr("y", d => y(d.height))
-			.attr("width", x.bandwidth)
-			.attr("height", d => HEIGHT - y(d.height))
+		// rects.transition().duration(500)
+		// 	.attr("x", (d, i) => { return (margin.left + i * 6) })
+		// 	.attr("y", d => height)
+		// 	.attr("width", (d,i) => {return 2})
+		// 	.attr("height", d => height - yScale(d.positiveIncrease))
 
 		// ENTER
 		rects.enter().append("rect")
-			.attr("x", d => x(d.name))
-			.attr("width", x.bandwidth)
-			.attr("fill", "grey")
-			.attr("y", HEIGHT)
-			.transition().duration(500)
-				.attr("height", d => HEIGHT - y(d.height))
-				.attr("y", d => y(d.height))
+            .attr("height", d => { return ( height - yScale(d.positiveIncrease)) })
+            .attr("y", function(d)  { return (yScale(d.positiveIncrease))})
+            .attr("x", function(d, i) { return margin.left + i * 6 })
+            .attr("width", function(d, i) { return 2 })
+            .attr("transform", "translate(" + 0 + "," + (margin.top) + ")")
+            .attr("class","bar")
+			// .transition().duration(500)
+			// 	.attr("height", d => height - yScale(d.positiveIncrease))
+			// 	.attr("y", d => yScale(height))
 
 			console.log(rects)
 	}
