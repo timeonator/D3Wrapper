@@ -90,6 +90,7 @@ export default class D3Chart {
         var xScale = d3.scaleTime()
             .domain([this.timeLine[0],new Date()])
             .range ([0, width])
+        console.log("xScale=", xScale)
 
         var gx = this.svg.append("g")
             .attr("class","x-axis")
@@ -118,8 +119,9 @@ export default class D3Chart {
 		rects.enter().append("rect")
             .attr("height", d => { return ( height - yScale(d.positiveIncrease)) })
             .attr("y", function(d)  { return (yScale(d.positiveIncrease))})
-            .attr("x", function(d, i) { return margin.left + i * 6 })
-            .attr("width", function(d, i) { return 2 })
+            .attr("x", function(d, i) { return (margin.left + 
+                xScale(new Date(formatter(parseDate(d.date))))) })
+            .attr("width", function(d, i) { return width/119 })
             .attr("transform", "translate(" + 0 + "," + (margin.top) + ")")
             .attr("class","bar")
 			// .transition().duration(500)
