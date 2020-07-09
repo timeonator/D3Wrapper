@@ -1,58 +1,67 @@
 import React, { Component } from 'react';
+import ComboSelect from 'react-combo-select';
+require('../node_modules/react-combo-select/style.css');
 
 function status(response) {
     if (response.status >= 200 && response.status < 300) {
-        return Promise.resolve(response)
+    return Promise.resolve(response)
     } else {
-        return Promise.reject(new Error(response.statusText))
+    return Promise.reject(new Error(response.statusText))
     }
 }
 
-function json(response) {
-    return (response.json());
-}
-
-class RCStateSelector extends Component {
+class StateSelector extends Component {
     constructor(props){
-        super(props);
-        this.url = 'https://covidtracking.com/api/v1/states/info.json';
+        super(props)
+        this.state = {
+            loading : true,
+            data : []
+        };
     }
-   
-    // fetch the state metat states json data
-    fetchData() {
-        fetch(this.url)
+
+
+    fetchData(){
+        fetch('https://covidtracking.com/api/v1/states/info.json')
         .then(status)
-        .then(json)
+        .then(resource => resource.json())
         .then((data) => {
-            this.setState ({ 'data' : data })
-            console.log('Request succeeded with JSON response', this.state);
+          this.setState ({ 'data' : data })
+          console.log('Request succeeded with JSON response', this.state);
         }).catch(function(error) {
-            console.log('Request failed', error);
+          console.log('Request failed', error);
         });
     }
 
-
     componentDidMount() {
-        console.log("RCStateSelector commponentDidMount()")
-        this.fetchData(this.url)
-        this.timer = setInterval(() => this.fetchData(), 5000);
-        console.log("State Meta Data is:", this.state)
-    }
-    componentDidUpdate() {
-        console.log("RSCStateSelector componentDidUpdate()")
+        console.log("StateSelect commponentDidMount()", this.state)
+        this.fetchData();
+        if (this.state.loading === false) this.timer = setInterval(() => this.fetchData(), 5000);
     }
 
-    buildSelector(){
-
+    onToggle(open, value, text) {
+        console.log(open, value, text);
     }
 
-    render(props){
-        return(
-            <select>
-                { this.state.data.foreach (s)}
-                <option>{s.state}</option>
-            </select>
-        );
+
+    render() {
+        console.log("StateSelector render: ", this.props)
+
+        let names = this.state.data.map(val => {
+             return({ text: val.name, value: val.state.toLowerCase() })
+        });
+
+        return (
+            <ComboSelect data={names} width = {this.props.width} onToggle = {this.onToggle} 
+                onChange = {(value,text) => {this.props.handleStateChange({
+                     currentState : {
+                         state: value,
+                         name: text
+                     }
+                })}
+                }
+                type="select"
+            />
+        )
     }
 }
-export default RCStateSelector
+export default StateSelector
